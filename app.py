@@ -17,7 +17,7 @@ if text:
         st.write(text)
     st.session_state.messages.append({"role": "user", "content": text})
 
-    response = ask_inventory_agent(text)
+    response = ask_inventory_agent(st.session_state.messages)
 
     with st.chat_message("assistant"):
         st.write(response)
