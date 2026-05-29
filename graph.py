@@ -47,28 +47,7 @@ workflow.add_conditional_edges("agent",tools_condition)
 workflow.add_edge("tools","agent")
 
 graph = workflow.compile()
-# --- The Execution Loop ---
-print("\n🤖 AI Inventory Agent Initialized. Type 'quit' to exit.")
-
-while True:
-    user_input = input("\nYou: ")
-    if user_input.lower() in ["quit", "exit", "q"]:
-        print("Shutting down...")
-        break
-    
-    # We pass the user's message into the graph using the AgentState blueprint
-    initial_state = {"messages": [("user", user_input)]}
-    
-    # Stream the graph's execution
-    events = graph.stream(initial_state, stream_mode="values")
-    
-    for event in events:
-        # Grab the most recent message from the state
-        recent_message = event["messages"][-1]
-        
-        # We only want to print the AI's or Tool's responses, not echo our own input
-        if recent_message.type != "human":
-            print(f"\n[{recent_message.type.upper()}]: {recent_message.content}")
-
-
-
+def ask_inventory_agent(user_input):
+    initial_state = {"messages":[("user",user_input)]}
+    result = graph.invoke(initial_state)
+    return result["messages"][-1].content
