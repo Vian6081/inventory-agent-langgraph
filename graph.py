@@ -57,6 +57,12 @@ workflow.add_conditional_edges("agent",tools_condition)
 workflow.add_edge("tools","agent")
 
 graph = workflow.compile()
+<<<<<<< HEAD
+def ask_inventory_agent(user_input):
+    initial_state = {"messages":[("user",user_input)]}
+    result = graph.invoke(initial_state)
+    return result["messages"][-1].content
+=======
 
 # 6.The Execution Loop 
 print("\n🤖 AI Inventory Agent Initialized. Type 'quit' to exit.")
@@ -83,3 +89,4 @@ while True:
 
 
 
+>>>>>>> 533a7e74952047445fc3b8cb7d89095c5b1d52c3
