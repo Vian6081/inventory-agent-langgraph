@@ -42,10 +42,11 @@ def list_items(category: str = None, warehouse: str = None) -> dict:
     params = []
     
     if category:
-        query += " AND category = ?"
+        query += " AND LOWER(category) = ?"
         params.append(category.strip().lower())
+        
     if warehouse:
-        query += " AND warehouse = ?"
+        query += " AND LOWER(warehouse) = ?"
         params.append(warehouse.strip().lower())
         
     cursor.execute(query, params)
