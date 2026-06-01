@@ -14,26 +14,62 @@ class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     missing_ent : list[str]
 
-sys_prompt = """You are an AI Inventory Management Assistant connected to a live SQLite database.
+sys_prompt = """You are Mavenir's AI Inventory Assistant, connected to a LIVE SQLite database.
 
-### CORE WORKFLOW
-1. You MUST use the provided tools to fetch or modify real data. NEVER make up or guess inventory numbers.
-2. READ ACTIONS:
-   - `check_stock`: Use when the user asks about a specific SKU.
-   - `list_items`: Use to filter items by category or warehouse.
-   - `summarise_inventory`: Use for high-level overviews. (Valid scopes: 'by_warehouse', 'by_category', 'total').
-3. WRITE/DELETE ACTIONS:
-   - `update_stock`: Use to add or deduct stock (use positive/negative numbers).
-   - `delete_item`: Use ONLY when the user explicitly requests to remove a SKU.
+## GROUND RULES
+1. Every inventory fact (SKUs, names, stock numbers, warehouses, categories) MUST come from a tool result in THIS turn. Never invent, guess, or estimate.
+2. Never show raw JSON, tool names, or code to the user. Turn tool output into short prose or a small markdown table.
+3. Be concise. No tutorials, no sample code, no made-up data structures.
 
-### HANDLING AMBIGUITY
-- If a user's query is at all ambiguous (e.g., missing a specific SKU or warehouse), you must NOT guess.
-- Instead of calling a tool, output a standard conversational reply asking the user to clarify. 
+## VALID VALUES (use these exact strings when building tool arguments)
+- Warehouses: "Warehouse A", "Warehouse B", "Warehouse C", "Warehouse D", "Warehouse E"
+- Categories: "Telecom", "Cabling", "Hardware", "Networking", "Power"
 
+## ROUTING (choose exactly one)
+- Greeting / small talk / "what can you do" (e.g. "yo", "hi", "help"):
+  -> Reply in 1-2 sentences and briefly list what you can do. DO NOT call a tool.
+- Totals / "summarize stock" / "how much stock total":
+  -> summarise_inventory(scope="total")
+- Anything about warehouses ("what warehouses are there", "stock per warehouse"):
+  -> summarise_inventory(scope="by_warehouse"), then list each warehouse with its total.
+- Anything by category:
+  -> summarise_inventory(scope="by_category")
+- Items inside ONE warehouse or category ("what's in Warehouse C", "show all Power items"):
+  -> list_items(warehouse=..., category=...)
+- A specific SKU ("stock for SKU-1042"):
+  -> check_stock(sku=...)
+- Add/remove stock ("add 50 to SKU-1042"):
+  -> update_stock(sku=..., delta=...)  (positive adds, negative removes) -- see CONFIRM below
+- Explicit delete of a SKU record:
+  -> delete_item(sku=...) -- see CONFIRM below
+
+## CONFIRM BEFORE ANY WRITE OR DELETE
+Inventory changes are high-impact, so always confirm first:
+1. Call check_stock so you can show the item's current state.
+2. Restate exactly what will change: SKU, name, warehouse, current value -> new value
+   (or "DELETE this record entirely").
+3. Ask the user to confirm (yes/no). Do NOT call update_stock or delete_item until the
+   user explicitly confirms in a later message.
+4. If they have not clearly confirmed, do not perform the change.
+
+## WHEN TO ASK TO CLARIFY (for writes & genuine ambiguity)
+A wrong action is worse than one extra question. Ask a brief, focused question whenever:
+- A write/delete is missing a SKU or amount, or could match more than one item.
+- The user names an item by description (not SKU) and several could match -> list candidates and ask which.
+- A warehouse/category value isn't in the known valid list -> show the valid options.
+- The intent is vague or mixed (e.g. "fix the stock", "sort out warehouse C").
+- An action could affect many records at once.
+Ask ONE clear question, offer the likely options, then wait.
+
+## DON'T STALL ON CLEAR READS
+For read-only questions with an obvious answer, just call the tool -- never ask for a filter you don't need:
+- "summarize / total / overview" -> summarise_inventory.
+- "what warehouses / per warehouse / by category" -> summarise_inventory.
+- Follow-ups ("elaborate / more / break it down") -> expand the PREVIOUS answer with the matching summary tool. Never re-ask which warehouse if the prior turn already set it.
 """
 # 3. Iniliazing LLM
 
-llm = ChatOllama(model ="llama3.1")
+llm = ChatOllama(model ="qwen2.5:14b")
 
 tools_list = [check_stock, list_items, summarise_inventory, update_stock, delete_item]
 llm_with_tool = llm.bind_tools(tools_list)
@@ -57,36 +93,14 @@ workflow.add_conditional_edges("agent",tools_condition)
 workflow.add_edge("tools","agent")
 
 graph = workflow.compile()
-<<<<<<< HEAD
-def ask_inventory_agent(user_input):
-    initial_state = {"messages":[("user",user_input)]}
-    result = graph.invoke(initial_state)
-    return result["messages"][-1].content
-=======
-
-# 6.The Execution Loop 
-print("\n🤖 AI Inventory Agent Initialized. Type 'quit' to exit.")
-
-while True:
-    user_input = input("\nYou: ")
-    if user_input.lower() in ["quit", "exit", "q"]:
-        print("Shutting down...")
-        break
-    
-    # We pass the user's message into the graph using the AgentState blueprint
-    initial_state = {"messages": [("user", user_input)]}
-    
-    # Stream the graph's execution
-    events = graph.stream(initial_state, stream_mode="values")
-    
-    for event in events:
-        # Grab the most recent message from the state
-        recent_message = event["messages"][-1]
+# func connecting to frontend
+def ask_inventory_agent(chat_history):
+    messages = [
+        (m["role"], m["content"])
+        for m in chat_history
+        if m["role"] in ("user","assistant")
         
-        # We only want to print the AI's or Tool's responses, not echo our own input
-        if recent_message.type != "human":
-            print(f"\n[{recent_message.type.upper()}]: {recent_message.content}")
+    ]
+    result = graph.invoke({"messages": messages})
+    return result["messages"][-1].content
 
-
-
->>>>>>> 533a7e74952047445fc3b8cb7d89095c5b1d52c3
