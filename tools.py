@@ -12,6 +12,9 @@ def check_stock(sku: str) -> dict:
     # Fetches the current stock level and details for a single specific SKU. Use this only when the user provides an exact SKU.
     """
     
+    #LOG
+    print(f"check_stock called with SKU: '{sku}'")
+    
     clean_sku = sku.strip().upper()
     
     conn = sqlite3.connect(DB_PATH)
@@ -34,6 +37,9 @@ def list_items(category: str = None, warehouse: str = None) -> dict:
     Returns a list of items filtered by category or warehouse. 
     Use this when the user asks for general items (e.g., 'show me all electronics' or 'what is in Gurgaon').
     """
+    #LOG
+    print(f"list_items called with category: '{category}' and warehouse: '{warehouse}'")
+    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row 
     cursor = conn.cursor()
@@ -68,6 +74,9 @@ def summarise_inventory(scope: str) -> dict:
     Valid scopes are strictly: 'by_warehouse', 'by_category', or 'total'.
     Use this when the user asks for summaries, totals, or broad overviews.
     """
+    #LOG
+    print(f"summarise_inventory called with scope: '{scope}'")
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -108,6 +117,9 @@ def update_stock(sku: str, delta: int) -> dict:
     Adjusts inventory count. 
     Pass a positive delta to add stock, or a negative delta to remove stock.
     """
+    #LOG
+    print(f"update_stock called with SKU: '{sku}' and delta: {delta}")
+    
     clean_sku = sku.strip().upper()
     
     conn = sqlite3.connect(DB_PATH)
@@ -133,6 +145,10 @@ def delete_item(sku: str) -> dict:
     Deletes an item record entirely from the database.
     Use only when the user explicitly requests to delete or remove a SKU.
     """
+    
+    #LOG
+    print(f"delete_item called with SKU: '{sku}'")
+    
     clean_sku = sku.strip().upper()
     
     conn = sqlite3.connect(DB_PATH)
