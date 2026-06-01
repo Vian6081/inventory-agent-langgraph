@@ -69,7 +69,7 @@ For read-only questions with an obvious answer, just call the tool -- never ask 
 """
 # 3. Iniliazing LLM
 
-llm = ChatOllama(model ="llama3.1")
+llm = ChatOllama(model ="qwen2.5:14b")
 
 tools_list = [check_stock, list_items, summarise_inventory, update_stock, delete_item]
 llm_with_tool = llm.bind_tools(tools_list)
