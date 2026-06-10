@@ -109,7 +109,7 @@ def summarise_inventory(scope: str) -> dict:
     return {"status": "success", "scope": clean_scope, "digest": digest}
 
 
-# 3. WRITE & DELETE TOOLS
+# 3. WRITE & DELETE TOOLS  fhadhjauf adfhuafoiaifhuahiufaoifaoiufaiufahiudf
 
 @tool
 def update_stock(sku: str, delta: int) -> dict:
