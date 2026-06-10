@@ -22,8 +22,8 @@ sys_prompt = """You are Mavenir's AI Inventory Assistant, connected to a LIVE SQ
 3. Be concise. No tutorials, no sample code, no made-up data structures.
 
 ## VALID VALUES (use these exact strings when building tool arguments)
-- Warehouses: "Warehouse A", "Warehouse B", "Warehouse C", "Warehouse D", "Warehouse E"
-- Categories: "Telecom", "Cabling", "Hardware", "Networking", "Power"
+- Warehouses: "dx04", "dx11", "dx17", "dx29", "dx35", "dx42", "dx58", "dx63", "dx77", "dx90", "chennai"
+- Categories: "server", "networkcomponents", "storage"
 
 ## ROUTING (choose exactly one)
 - Greeting / small talk / "what can you do" (e.g. "yo", "hi", "help"):
