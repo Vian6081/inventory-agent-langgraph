@@ -3,105 +3,87 @@ import sqlite3
 import pandas as pd
 from graph import ask_inventory_agent
 
-st.set_page_config(page_title="Mavenir AI Inventory Agent", layout="wide")
+# Changed from "wide" to "centered" for a much cleaner, ChatGPT-style look
+st.set_page_config(page_title="Mavenir AI Inventory Agent", layout="centered")
 
 DB_PATH = "inventory.db"
 
-with st.sidebar:
-    st.title("📂 Upload Data")
-    st.markdown("Upload an Excel file to add or replace data in the database.")
+# ==========================================
+# MAIN CHAT UI
+# ==========================================
+st.title("Mavenir AI Inventory Agent")
 
-    uploaded_file = st.file_uploader(
-        "Choose an Excel file (.xlsx)",
-        type=["xlsx"],
-        help="Upload your CMDB Excel sheet here"
-    )
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    replace_mode = st.radio(
-        "Import mode",
-        ["Replace all existing data", "Add to existing data"],
-        index=0
-    )
+# Display chat history
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# ==========================================
+# THE HIDDEN ADMIN MENU (Popover UI)
+# ==========================================
+# Everything is tucked neatly inside this single button above the chat bar
+with st.popover("⚙️ Database & Upload"):
+    st.markdown("**Upload CMDB Data**")
+    uploaded_file = st.file_uploader("Choose an Excel file (.xlsx)", type=["xlsx"], label_visibility="collapsed")
+    
+    replace_mode = st.radio("Import mode", ["Replace all existing data", "Add to existing data"], index=0)
 
     if uploaded_file is not None:
         if st.button("📥 Import File", use_container_width=True):
-            try:
-                df = pd.read_excel(uploaded_file, sheet_name="CMDB")
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
+            with st.spinner("Processing..."):
+                try:
+                    df = pd.read_excel(uploaded_file, sheet_name="CMDB")
+                    df.dropna(how='all', inplace=True)
+                    
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
 
-                if replace_mode == "Replace all existing data":
-                    cursor.execute("DROP TABLE IF EXISTS items")
-                    cursor.execute("""
-                        CREATE TABLE items (
-                            sno             INTEGER PRIMARY KEY,
-                            display_name    TEXT,
-                            ip_address      TEXT,
-                            location        TEXT,
-                            om_server       TEXT,
-                            status          TEXT,
-                            isv_partner     TEXT,
-                            service_name    TEXT,
-                            serial_no       TEXT,
-                            hardware_type   TEXT,
-                            hardware_make   TEXT,
-                            hardware_model  TEXT,
-                            monitor_type    TEXT,
-                            vertical        TEXT,
-                            category        TEXT,
-                            server_category TEXT
-                        )
-                    """)
+                    if replace_mode == "Replace all existing data":
+                        cursor.execute("DROP TABLE IF EXISTS items")
+                        cursor.execute("""
+                            CREATE TABLE items (
+                                sku TEXT PRIMARY KEY,
+                                name TEXT,
+                                category TEXT,
+                                warehouse TEXT,
+                                stock_level INTEGER
+                            )
+                        """)
 
-                rows = []
-                for _, row in df.iterrows():
-                    rows.append((
-                        row.get("S.NO"),
-                        row.get("Display Name"),
-                        row.get("Ip Address"),
-                        row.get("Location"),
-                        row.get("Om Server"),
-                        row.get("Status"),
-                        row.get("Isv Partner"),
-                        row.get("Service Name"),
-                        row.get("Serial No"),
-                        row.get("Hardware Type"),
-                        row.get("Hardware Make"),
-                        row.get("Hardware Model"),
-                        row.get("Monitor Type"),
-                        row.get("Vertical"),
-                        row.get("Category"),
-                        row.get("Server Category"),
-                    ))
+                    rows = []
+                    for _, row in df.iterrows():
+                        rows.append((
+                            str(row.get("Serial No")).strip().upper(),
+                            str(row.get("Display Name")),
+                            str(row.get("Category")).strip().lower(),
+                            str(row.get("Location")).strip().lower(),
+                            1
+                        ))
 
-                if replace_mode == "Replace all existing data":
-                    cursor.executemany("""
-                        INSERT INTO items (
-                            sno, display_name, ip_address, location, om_server, status,
-                            isv_partner, service_name, serial_no, hardware_type, hardware_make,
-                            hardware_model, monitor_type, vertical, category, server_category
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, rows)
-                else:
-                    cursor.executemany("""
-                        INSERT OR IGNORE INTO items (
-                            sno, display_name, ip_address, location, om_server, status,
-                            isv_partner, service_name, serial_no, hardware_type, hardware_make,
-                            hardware_model, monitor_type, vertical, category, server_category
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, rows)
+                    if replace_mode == "Replace all existing data":
+                        cursor.executemany("""
+                            INSERT INTO items (sku, name, category, warehouse, stock_level) 
+                            VALUES (?, ?, ?, ?, ?)
+                        """, rows)
+                    else:
+                        cursor.executemany("""
+                            INSERT OR IGNORE INTO items (sku, name, category, warehouse, stock_level) 
+                            VALUES (?, ?, ?, ?, ?)
+                        """, rows)
 
-                conn.commit()
-                conn.close()
-
-                st.success(f"✅ {len(rows)} records imported successfully!")
-                st.rerun()
-
-            except Exception as e:
-                st.error(f" Error importing file: {str(e)}")
-
+                    conn.commit()
+                    conn.close()
+                    st.success(f"✅ {len(rows)} records imported successfully!")
+                except Exception as e:
+                    st.error(f"Error importing file: {str(e)}")
+    
     st.divider()
-
+    
+    # Teammate's metrics, safely hidden from the main UI
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -124,26 +106,21 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Error: {str(e)}")
 
-st.title("Mavenir AI Inventory Agent")
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
+# ==========================================
+# CHAT INPUT BAR
+# ==========================================
 if prompt := st.chat_input("Ask me about your inventory..."):
- 
+    
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
+        
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
+                # Call your LangGraph Agent!
                 response = ask_inventory_agent(st.session_state.messages)
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
             except Exception as e:
-                error_msg = f" Error: {str(e)}"
-                st.error(error_msg)
+                st.error(f"Error: {str(e)}")
